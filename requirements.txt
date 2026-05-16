@@ -1,2 +1,6 @@
-python-telegram-bot
+httpx
 requests
+fake-useragent
+requests-toolbelt
+Faker
+python-telegram-bot
