@@ -279,14 +279,12 @@ class PayPal:
             except:
                 return "UNKNOWN_ERROR"
 
+# ------------------- Users -------------------
 
-# ------------------- Users & Gates -------------------
-
-ADMINS = [6843321125]  # الأدمن
-GATES = ["https://rhapsody.christembassydallas.org"] # البوابات
-USER_POINTS = {}  # {user_id: points}
+ADMINS = [6843321125]  # ضع هنا ID الأدمن
+VIP_USERS = {}  # {user_id: expiration_timestamp}
 BANNED_USERS = {}  # {user_id: True}
-ALL_USERS = set()  # كل المستخدمين
+ALL_USERS = set()  # كل مستخدم دخل البوت
 stop_users = {}
 last_check_time = {}
 ANTI_SPAM_SECONDS = 7
@@ -295,7 +293,7 @@ user_tasks = {}
 
 # ------------------- Codes -------------------
 
-CODES = {}  # {"WAFA-XXXX-XXXX-XXXX": {"points": 100, "max_users":5, "used":0, "created":timestamp}}
+CODES = {}  # {"WAFA-XXXX-XXXX-XXXX": {"duration":7, "max_users":5, "used":0, "created":timestamp}}
 
 # ------------------- BIN Lookup -------------------
 
@@ -331,121 +329,86 @@ async def get_bin_info(bin_number):
 # ------------------- Check API -------------------
 
 async def check_card_api(card_full):
-    last_response = "No gates available"
-    for gate_url in GATES:
-        try:
-            paypal_checker = PayPal(gate_url)
-            if not await asyncio.to_thread(paypal_checker.Key):
-                last_response = f"Key Error on {gate_url}"
-                continue
-            result_raw = await asyncio.to_thread(paypal_checker.Krs, card_full)
-            result = result_raw.lower()
-            if "charge 1.00$" in result or "success" in result:
-                return "approved", result_raw
-            elif "insufficient_funds" in result:
-                return "live", result_raw
-            else:
-                last_response = result_raw
-        except Exception as e:
-            last_response = f"Error on {gate_url}: {e}"
-            continue
-    
-    if "charge 1.00$" in last_response.lower() or "success" in last_response.lower():
-        return "approved", last_response
-    elif "insufficient_funds" in last_response.lower():
-        return "live", last_response
-    else:
-        return "declined", last_response
+    try:
+        paypal_checker = PayPal()
+        await asyncio.to_thread(paypal_checker.Key)
+        result_raw = await asyncio.to_thread(paypal_checker.Krs, card_full)
+        result = result_raw.lower()
+        if "charge 1.00$" in result or "success" in result:
+            return "approved", result_raw
+        elif "insufficient_funds" in result:
+            return "live", result_raw
+        else:
+            return "declined", result_raw
+    except Exception as e:
+        return "declined", f"Error: {e}"
 
 # ------------------- Format Response -------------------
 
-async def format_response(card_full, status, response, taken, user_id, user_name="Unknown"):
+async def format_response(card_full, status, response, taken):
     bin_number = card_full.split("|")[0][:6]
     info, bank, country = await get_bin_info(bin_number)
 
     if status == "approved":
-        status_text = "#Paypal_Cvv_Charged☠"
+        status_text = "#Charge 🔥"
     elif status == "live":
         status_text = "#Live ✅"
     else:
         status_text = "#Declined ❌"
-        
-    points = "Infinity" if user_id in ADMINS else USER_POINTS.get(user_id, 0)
-        
-    return f"""{status_text} [/pp] ($1.00)
-- - - - - - - - - - - - - - - - - - - - - -
-[ϟ] 𝐂𝐚𝐫𝐝: `{card_full}`
-[ϟ] 𝐑𝐞𝐬𝐩𝐨𝐧𝐬𝐞: {response}
-[ϟ] 𝐒𝐭𝐚𝐭𝐮𝐬: {status}
-[ϟ] 𝐓𝐚𝐤𝐞𝐧: {taken} 𝐒.
-- - - - - - - - - - - - - - - - - - - - - -
-[ϟ] 𝐈𝐧𝐟𝐨: {info} ✅
-- - - - - - - - - - - - - - - - - - - - - -
-[ϟ] 𝐁𝐚𝐧𝐤: {bank}
-[ϟ] 𝐂𝐨𝐮𝐧𝐭𝐫𝐲: {country}
-- - - - - - - - - - - - - - - - - - - - - -
-[ϟ] 𝐏𝐨𝐢𝐧𝐭𝐬 𝐋𝐞𝐟𝐭: {points}
-- - - - - - - - - - - - - - - - - - - - - -
-[⌥] 𝐓𝐢𝐦𝐞: {taken} 𝐒𝐞𝐜.
-[⎇] 𝐑𝐞𝐪 𝐁𝐲: {user_name}
-- - - - - - - - - - - - - - - - - - - - - -
-[⌤] 𝐃𝐞𝐯 𝐛𝐲: @wafa4048 - 🍀"""
+    return f"""#PayPal_Custom ($1.00) 🌟 
+
+[ϟ] Card: {card_full}
+[ϟ] Response: {response}
+[ϟ] Status: {status_text}
+[ϟ] Taken: {taken}s
+
+[ϟ] Info: {info}
+[ϟ] Bank: {bank}
+[ϟ] Country: {country}
+[⌤] Dev by: . - 🍀"""
 
 # ------------------- Permissions -------------------
 
-def can_user_check(user_id):
+def can_user_check(user_id, mode="file"):
     if user_id in ADMINS:
         return True
-    if BANNED_USERS.get(user_id):
+    elif BANNED_USERS.get(user_id):
         return False
-    if USER_POINTS.get(user_id, 0) > 0:
+    elif user_id in VIP_USERS and VIP_USERS[user_id] > time.time():
         return True
-    return False
-
-def deduct_point(user_id):
-    if user_id in ADMINS:
-        return True
-    if USER_POINTS.get(user_id, 0) > 0:
-        USER_POINTS[user_id] -= 1
-        return True
-    return False
+    else:
+        return mode == "single"
 
 # ------------------- /pp -------------------
 
 async def pp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     ALL_USERS.add(user_id)
-    if not can_user_check(user_id):
-        await update.message.reply_text("❌ You don't have enough points. Contact Admin.")
+    if not can_user_check(user_id, "single"):
+        await update.message.reply_text("❌ VIP only for single check.")
         return
-    
-    if user_id not in ADMINS:
+    if user_id not in ADMINS and (user_id not in VIP_USERS or VIP_USERS[user_id] < time.time()):
         now = time.time()
         last = last_check_time.get(user_id, 0)
         if now - last < ANTI_SPAM_SECONDS:
             await update.message.reply_text(f"❌ Wait {ANTI_SPAM_SECONDS} seconds before next check")
             return
         last_check_time[user_id] = now
-        
     try:
         asyncio.create_task(process_pp(update, context))
     except Exception as e:
         await update.message.reply_text(f"Error: {e}")
 
 async def process_pp(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
     card_full = " ".join(context.args)
     if not card_full:
         await update.message.reply_text("Usage:\n/pp 4242424242424242|09|28|123")
         return
-    
-    deduct_point(user_id)
     start_time = time.time()
     status, response = await check_card_api(card_full)
     taken = round(time.time() - start_time, 2)
-    user_name = update.effective_user.first_name
-    text = await format_response(card_full, status, response, taken, user_id, user_name)
-    await update.message.reply_text(text, parse_mode="Markdown")
+    text = await format_response(card_full, status, response, taken)
+    await update.message.reply_text(text)
 
 # ------------------- /stop -------------------
 
@@ -454,98 +417,13 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     stop_users[user_id] = True
     await update.message.reply_text("Stopped ⛔")
 
-# ------------------- /addgate -------------------
-
-async def add_gate(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in ADMINS:
-        return
-    if len(context.args) == 0:
-        return await update.message.reply_text("Usage:\n/addgate https://example.com")
-    
-    new_gate = context.args[0]
-    if not new_gate.startswith("http"):
-        return await update.message.reply_text("❌ Invalid URL")
-    
-    msg = await update.message.reply_text("🔍 Testing Gate...")
-    
-    test_card = "4532015112830366|12|2027|123"
-    start_time = time.time()
-    
-    paypal_checker = PayPal(new_gate)
-    is_key_ok = await asyncio.to_thread(paypal_checker.Key)
-    
-    if not is_key_ok:
-        return await msg.edit_text("❌ Failed to fetch keys from this URL. Gate NOT added.")
-        
-    response = await asyncio.to_thread(paypal_checker.Krs, test_card)
-    taken = round(time.time() - start_time, 2)
-    
-    working_responses = ["ACCOUNT_CLOSED", "INVALID_ACCOUNT", "INSUFFICIENT_FUNDS", "DO_NOT_HONOR", "DECLINED", "CHARGE 1.00$", "SUCCESS"]
-    is_working = any(res in response.upper() for res in working_responses)
-    
-    status_text = "working" if is_working else "bad"
-    gate_status = "𝐆𝐚𝐭𝐞 𝐒𝐞𝐭 𝐒𝐮𝐜𝐜𝐞𝐬𝐬𝐟𝐮𝐥𝐥𝐲! ✅" if is_working else "𝐆𝐚𝐭𝐞 𝐒𝐞𝐭 𝐅𝐚𝐢𝐥𝐞𝐝! ❌"
-    
-    if is_working:
-        GATES.append(new_gate)
-    
-    bin_info, bank, country = await get_bin_info("453201")
-    
-    report = f"""#Paypal_Cvv_Charged☠ [/pp] ($1.00)
-- - - - - - - - - - - - - - - - - - - - - -
-[ϟ] 𝐂𝐚𝐫𝐝: `{test_card}`
-[ϟ] 𝐑𝐞𝐬𝐩𝐨𝐧𝐬𝐞: {response}
-[ϟ] 𝐒𝐭𝐚𝐭𝐮𝐬: {status_text}
-[ϟ] 𝐓𝐚𝐤𝐞𝐧: {taken} 𝐒.
-- - - - - - - - - - - - - - - - - - - - - -
-[ϟ] 𝐈𝐧𝐟𝐨: {bin_info} ✅ {gate_status}
-- - - - - - - - - - - - - - - - - - - - - -
-[ϟ] Domain: {paypal_checker.domain}
-[ϟ] Form ID: {paypal_checker.id_form2}
-- - - - - - - - - - - - - - - - - - - - - -
-🧪 𝐆𝐚𝐭𝐞 𝐓𝐞𝐬𝐭:
-[ϟ] Card: {test_card}
-[ϟ] Response: {response}
-[ϟ] Status: {status_text}
-[ϟ] Time: {taken}s
-- - - - - - - - - - - - - - - - - - - - - -
-[ϟ] 𝐔𝐬𝐞 /pp [card] 𝐭𝐨 𝐜𝐡𝐞𝐜𝐤 𝐦𝐚𝐧𝐮𝐚𝐥𝐥𝐲
-[ϟ] 𝐎𝐫 𝐬𝐞𝐧𝐝 𝐚 .𝐭𝐱𝐭 𝐟𝐢𝐥𝐞 𝐟𝐨𝐫 𝐦𝐚𝐬𝐬 𝐜𝐡𝐞𝐜𝐤
-- - - - - - - - - - - - - - - - - - - - - -
-[ϟ] 𝐁𝐚𝐧𝐤: {bank}
-[ϟ] 𝐂𝐨𝐮𝐧𝐭𝐫𝐲: {country}
-- - - - - - - - - - - - - - - - - - - - - -
-[⌥] 𝐓𝐢𝐦𝐞: {taken} 𝐒𝐞𝐜.
-[⎇] 𝐑𝐞𝐪 𝐁𝐲: {update.effective_user.first_name}
-- - - - - - - - - - - - - - - - - - - - - -
-[⌤] 𝐃𝐞𝐯 𝐛𝐲: @wafa4048 - 🍀"""
-    
-    await msg.edit_text(report, parse_mode="Markdown")
-
-# ------------------- /removegate -------------------
-
-async def remove_gate(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in ADMINS:
-        return
-    if len(context.args) == 0:
-        return await update.message.reply_text("Usage:\n/removegate https://example.com")
-    
-    gate_to_remove = context.args[0]
-    if gate_to_remove in GATES:
-        GATES.remove(gate_to_remove)
-        await update.message.reply_text(f"✅ Gate removed successfully.\nRemaining gates: {len(GATES)}")
-    else:
-        await update.message.reply_text("❌ Gate not found in list.")
-
 # ------------------- File Handler -------------------
 
 async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     ALL_USERS.add(user_id)
-    if not can_user_check(user_id):
-        await update.message.reply_text("❌ You don't have enough points. Contact Admin.")
+    if not can_user_check(user_id, "file"):
+        await update.message.reply_text("❌ VIP only for file check.")
         return
     if user_id not in ADMINS:
         if user_id in user_tasks and not user_tasks[user_id].done():
@@ -561,7 +439,6 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    user_name = update.effective_user.first_name
     stop_users[user_id] = False
     try:
         os.makedirs("downloads", exist_ok=True)
@@ -578,39 +455,33 @@ async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         async def process_line(line):
             nonlocal approved, live, declined
             try:
-                if not deduct_point(user_id):
-                    return "NO_POINTS"
-                    
                 match = re.findall(r'\d{12,16}\|\d{2}\|\d{2,4}\|\d{3,4}', line)
                 if not match:
                     return
                 card_full = match[0]
                 start_time = time.time()
                 status, response = await check_card_api(card_full)
-                await asyncio.sleep(random.uniform(0, 1))
+                await asyncio.sleep(random.uniform(0, 2))
                 taken = round(time.time() - start_time, 2)
-                text = await format_response(card_full, status, response, taken, user_id, user_name)
+                text = await format_response(card_full, status, response, taken)
                 if status == "approved":
                     approved += 1
-                    await update.message.reply_text(text, parse_mode="Markdown")
+                    await update.message.reply_text(text)
                 elif status == "live":
                     live += 1
-                    await update.message.reply_text(text, parse_mode="Markdown")
+                    await update.message.reply_text(text)
                 else:
                     declined += 1
-                
                 last_info, last_bank, last_country = await get_bin_info(card_full.split("|")[0][:6])
-                points = "Infinity" if user_id in ADMINS else USER_POINTS.get(user_id, 0)
                 panel = f"""📊 Status 
 
 ✅ Charge: {approved} 💥
 🟢 Live: {live} 💫
 ❌ Declined: {declined}
 📂 Total: {approved + live + declined}
-💰 Points Left: {points}
 
 ━━━━━━━━━━━━━━━
-💳 Last Card: `{card_full}`
+💳 Last Card: {card_full}
 📨 Response: {response}
 🏦 Info: {last_info}
 🏛 Bank: {last_bank}
@@ -620,7 +491,7 @@ async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 ⛔ Stop: {'ON' if stop_users.get(user_id) else 'OFF'}"""
                 try:
-                    await panel_msg.edit_text(panel, parse_mode="Markdown")
+                    await panel_msg.edit_text(panel)
                 except:
                     pass
                 return text
@@ -633,10 +504,7 @@ async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text("Stopped ⛔")
                 return
             try:
-                res = await process_line(line)
-                if res == "NO_POINTS":
-                    await update.message.reply_text("❌ Points finished!")
-                    break
+                await process_line(line)
             except Exception as e:
                 print(f"Loop Error: {e}")
                 continue
@@ -644,7 +512,7 @@ async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with open(results_file_path, 'w', encoding='utf-8') as result_file:
             for line in lines:
                 try:
-                    r = await format_response(line.strip(), "N/A", "N/A", 0, user_id, user_name)
+                    r = await format_response(line.strip(), "N/A", "N/A", 0)
                     result_file.write(r + "\n\n")
                 except:
                     continue
@@ -684,67 +552,38 @@ async def code_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     code_data = CODES[code]
     if code_data["used"] >= code_data["max_users"]:
         return await update.message.reply_text("❌ Code usage limit reached")
-    
-    current_points = USER_POINTS.get(user_id, 0)
-    USER_POINTS[user_id] = current_points + code_data["points"]
+    VIP_USERS[user_id] = int(time.time()) + code_data["duration"] * 86400
     code_data["used"] += 1
-    await update.message.reply_text(f"✅ Code activated!\nYou received {code_data['points']} points.\nTotal: {USER_POINTS[user_id]}\nUsed {code_data['used']}/{code_data['max_users']}")
+    await update.message.reply_text(f"✅ Code activated!\nYou are now VIP for {code_data['duration']} days.\nUsed {code_data['used']}/{code_data['max_users']}")
 
-# ------------------- /wafa (Add Points) -------------------
+# ------------------- /wafa -------------------
 
 async def wafa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id not in ADMINS:
-        return
+        return await update.message.reply_text("❌ Only admin can create codes")
     if len(context.args) < 2:
-        return await update.message.reply_text("Usage:\n/wafa USER_ID POINTS\nOr to create code: /wafa code POINTS MAX_USERS")
-    
-    if context.args[0].lower() == "code":
-        try:
-            points = int(context.args[1])
-            max_users = int(context.args[2])
-            code = "WAFA-" + "-".join("".join(random.choices(string.ascii_uppercase + string.digits, k=4)) for _ in range(3))
-            CODES[code] = {"points": points, "max_users": max_users, "used": 0, "created": time.time()}
-            return await update.message.reply_text(f"✅ Created code:\n{code}\nPoints: {points}\nMax users: {max_users}")
-        except:
-            return await update.message.reply_text("❌ Invalid numbers")
-            
+        return await update.message.reply_text("Usage:\n/wafa DAYS MAX_USERS")
     try:
-        target_id = int(context.args[0])
-        points = int(context.args[1])
-        USER_POINTS[target_id] = USER_POINTS.get(target_id, 0) + points
-        await update.message.reply_text(f"✅ Added {points} points to {target_id}.\nTotal: {USER_POINTS[target_id]}")
+        duration = int(context.args[0])
+        max_users = int(context.args[1])
     except:
-        await update.message.reply_text("❌ Invalid format. Use: /wafa USER_ID POINTS")
-
-# ------------------- /removewafa (Deduct Points) -------------------
-
-async def remove_wafa(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in ADMINS:
-        return
-    if len(context.args) < 2:
-        return await update.message.reply_text("Usage:\n/removewafa USER_ID POINTS")
-    try:
-        target_id = int(context.args[0])
-        points = int(context.args[1])
-        current = USER_POINTS.get(target_id, 0)
-        USER_POINTS[target_id] = max(0, current - points)
-        await update.message.reply_text(f"✅ Deducted {points} points from {target_id}.\nRemaining: {USER_POINTS[target_id]}")
-    except:
-        await update.message.reply_text("❌ Invalid format. Use: /removewafa USER_ID POINTS")
+        return await update.message.reply_text("❌ Invalid numbers")
+    code = "WAFA-" + "-".join("".join(random.choices(string.ascii_uppercase + string.digits, k=4)) for _ in range(3))
+    CODES[code] = {"duration": duration, "max_users": max_users, "used": 0, "created": time.time()}
+    await update.message.reply_text(f"✅ Created code:\n{code}\nDuration: {duration} days\nMax users: {max_users}")
 
 # ------------------- /show_users -------------------
 
 async def show_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id not in ADMINS:
-        return
+        return await update.message.reply_text("❌ Only admin")
     msg = "📊 All Users:\n\n"
     for uid in ALL_USERS:
-        status = "BANNED" if uid in BANNED_USERS else "ADMIN" if uid in ADMINS else "USER"
-        pts = USER_POINTS.get(uid, 0) if uid not in ADMINS else "Infinity"
-        msg += f"{uid} - {status} - Points: {pts}\n"
+        status = "BANNED" if uid in BANNED_USERS else "VIP" if uid in VIP_USERS else "NORMAL"
+        expire = f" expires in {int((VIP_USERS[uid] - time.time()) / 3600)}h" if uid in VIP_USERS else ""
+        msg += f"{uid} - {status}{expire}\n"
     await update.message.reply_text(msg if msg else "No users yet")
 
 # ------------------- Ban/Unban -------------------
@@ -752,59 +591,30 @@ async def show_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id not in ADMINS:
-        return
+        return await update.message.reply_text("❌ Only admin can ban users")
     if len(context.args) == 0:
         return await update.message.reply_text("Usage:\n/ban_user USER_ID")
     uid = int(context.args[0])
     BANNED_USERS[uid] = True
+    VIP_USERS.pop(uid, None)
     await update.message.reply_text(f"User {uid} banned ✅")
 
 async def unban_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id not in ADMINS:
-        return
+        return await update.message.reply_text("❌ Only admin can unban users")
     if len(context.args) == 0:
         return await update.message.reply_text("Usage:\n/unban_user USER_ID")
     uid = int(context.args[0])
     BANNED_USERS.pop(uid, None)
     await update.message.reply_text(f"User {uid} unbanned ✅")
 
-# ------------------- /helpcmds -------------------
-
-async def help_cmds(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in ADMINS:
-        return
-    help_text = """🛠 **Admin Commands:**
-
-🔹 **Gates Management:**
-/addgate [url] - Add & Test new gate
-/removegate [url] - Remove gate
-
-🔹 **Points Management:**
-/wafa [user_id] [points] - Add points to user
-/wafa code [points] [max_users] - Create redeem code
-/removewafa [user_id] [points] - Deduct points from user
-
-🔹 **User Management:**
-/show_users - List all users & points
-/ban_user [user_id] - Ban user
-/unban_user [user_id] - Unban user
-/try [user_id] [msg] - Send message to user
-
-🔹 **General:**
-/start - Start the bot
-/pp [card] - Single check
-/stop - Stop current file check
-/code [code] - Redeem points code"""
-    await update.message.reply_text(help_text, parse_mode="Markdown")
-
 # ------------------- /start -------------------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     ALL_USERS.add(user_id)
-    await update.message.reply_text("Bot Ready ✅\nUse /pp to check cards.")
+    await update.message.reply_text("Bot Ready ✅")
 
 # ------------------- Run -------------------
 
@@ -814,16 +624,12 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("pp", pp))
     app.add_handler(CommandHandler("stop", stop))
-    app.add_handler(CommandHandler("addgate", add_gate))
-    app.add_handler(CommandHandler("removegate", remove_gate))
     app.add_handler(CommandHandler("code", code_command))
     app.add_handler(CommandHandler("wafa", wafa_command))
-    app.add_handler(CommandHandler("removewafa", remove_wafa))
     app.add_handler(CommandHandler("show_users", show_users))
     app.add_handler(CommandHandler("ban_user", ban_user))
     app.add_handler(CommandHandler("unban_user", unban_user))
     app.add_handler(CommandHandler("try", try_reply))
-    app.add_handler(CommandHandler("helpcmds", help_cmds))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_file))
     app.run_polling()
 
