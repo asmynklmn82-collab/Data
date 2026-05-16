@@ -23,7 +23,7 @@ class PayPal:
     def __init__(self):
         self.first_name = ["James", "John", "Robert", "Michael", "William", "David", "Richard", "Joseph", "Thomas", "Charles"]
         self.last_name = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez"]
-        url = 'https://rhapsody.christembassydallas.org'
+        url = 'https://medicalanimalsinneed.com/sasha-thairidgeback-mix'
         parsed = urlparse(url)
         domain = parsed.netloc
         path = parsed.path
