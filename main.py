@@ -632,15 +632,7 @@ async def unban_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     ALL_USERS.add(user_id)
-    await update.message.reply_text("╔═══『 ⚡ Welcome ⚡ 』═══╗
-
-👑 Wafa Checker Bot
-
-💎 /pp - file send (VIP)
-
-🚀 Bot Is Working 
-
-╚════════════════════╝")
+    await update.message.reply_text("Bot Ready 💬")
 
 # ------------------- Run -------------------
 
