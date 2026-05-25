@@ -295,11 +295,8 @@ TOKEN = '7834120140:AAFKg-uBhB6ZFpDQqf3imLqyX9X2E2qO_XE'
                                 result = r5.json()['data']['error']
                                 return result
                         except:
-                                return "UNKNOWN_ERROR"
-                   
-
-                
-                                                        
+                                return "UNKNOWN_ERROR"                  
+                                                                        
 # ------------------- Users -------------------
 
 ADMINS = [6843321125]  # ضع هنا ID الأدمن
