@@ -18,11 +18,11 @@ from telegram.ext import (
 TOKEN = '7834120140:AAFKg-uBhB6ZFpDQqf3imLqyX9X2E2qO_XE'
 
 # ------------------- PayPal Gateway Class -------------------
-class PayPal:
+ class PayPal:
         def __init__(self):
                 self.first_name = ["James", "John", "Robert", "Michael", "William", "David", "Richard", "Joseph", "Thomas", "Charles"]
                 self.last_name = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez"]
-                url = 'https://ashrafulaid.ca/donations/feed-a-refugee-family/'
+                url = 'https://riversidefoxfoundation.org/donations/preview'
                 parsed = urlparse(url)
                 domain = parsed.netloc
                 path = parsed.path
@@ -296,6 +296,9 @@ class PayPal:
                                 return result
                         except:
                                 return "UNKNOWN_ERROR"
+                   
+
+                
                                                         
 # ------------------- Users -------------------
 
