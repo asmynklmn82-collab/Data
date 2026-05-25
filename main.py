@@ -383,7 +383,7 @@ async def format_response(card_full, status, response, taken):
 [ϟ] Info: {info}
 [ϟ] Bank: {bank}
 [ϟ] Country: {country}
-[⌤] Dev by: . - 🍀"""
+[⌤] Dev by: Wafa - 🍀"""
 
 # ------------------- Permissions -------------------
 
@@ -632,7 +632,15 @@ async def unban_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     ALL_USERS.add(user_id)
-    await update.message.reply_text("Bot Ready ✅")
+    await update.message.reply_text("╔═══『 ⚡ Welcome ⚡ 』═══╗
+
+👑 Wafa Checker Bot
+
+💎 /pp - file send (VIP)
+
+🚀 Bot Is Working 
+
+╚════════════════════╝")
 
 # ------------------- Run -------------------
 
