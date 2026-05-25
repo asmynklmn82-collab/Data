@@ -22,7 +22,7 @@ class PayPal:
         def __init__(self):
                 self.first_name = ["James", "John", "Robert", "Michael", "William", "David", "Richard", "Joseph", "Thomas", "Charles"]
                 self.last_name = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez"]
-                url = 'https://legacyradio4.com/events'
+                url = 'https://sylvanhealing.org/donations-page/'
                 parsed = urlparse(url)
                 domain = parsed.netloc
                 path = parsed.path
@@ -296,7 +296,8 @@ class PayPal:
                                 return result
                         except:
                                 return "UNKNOWN_ERROR"
-                                    
+                
+                                                    
 # ------------------- Users -------------------
 
 ADMINS = [6843321125]  # ضع هنا ID الأدمن
