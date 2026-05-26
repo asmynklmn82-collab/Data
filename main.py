@@ -22,7 +22,7 @@ class PayPal:
         def __init__(self):
                 self.first_name = ["James", "John", "Robert", "Michael", "William", "David", "Richard", "Joseph", "Thomas", "Charles"]
                 self.last_name = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez"]
-                url = 'https://animalcaretrust.org.uk/donations/please-help-bella'
+                url = 'https://riversidefoxfoundation.org/donations/preview'
                 parsed = urlparse(url)
                 domain = parsed.netloc
                 path = parsed.path
@@ -295,7 +295,7 @@ class PayPal:
                                 result = r5.json()['data']['error']
                                 return result
                         except:
-                                return "UNKNOWN_ERROR"
+                                return "UNKNOWN_ERROR"                                                    
 
 # ------------------- Users -------------------
 
@@ -383,7 +383,7 @@ async def format_response(card_full, status, response, taken):
 [ϟ] Info: {info}
 [ϟ] Bank: {bank}
 [ϟ] Country: {country}
-[⌤] Dev by: Wafa - 🍀"""
+[⌤] Dev by: Wafa" - 🍀"""
 
 # ------------------- Permissions -------------------
 
