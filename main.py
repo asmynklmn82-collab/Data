@@ -15,7 +15,7 @@ from telegram.ext import (
     Application, CommandHandler, MessageHandler, filters, ContextTypes
 )
 
-TOKEN = '7834120140:AAFKg-uBhB6ZFpDQqf3imLqyX9X2E2qO_XE'
+TOKEN = '7834120140:AAHL1Tn-FSgYnyuYeP3jQ-LhfRqMMDHNr9w'
 
 # ------------------- PayPal Gateway Class -------------------
 class PayPal:
