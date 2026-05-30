@@ -295,7 +295,7 @@ class PayPal:
                                 result = r5.json()['data']['error']
                                 return result
                         except:
-                                return "UNKNOWN_ERROR"                                
+                                return "UNKNOWN_ERROR"                                                                       
                                                                             
 # ------------------- Users -------------------
 
