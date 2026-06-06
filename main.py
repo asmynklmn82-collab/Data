@@ -279,7 +279,7 @@ async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     
                 start_time = time.time()
                 status, response = await check_card_api(card_full, gateway)
-                await asyncio.sleep(random.uniform(0.5, 1.5))
+                await asyncio.sleep(random.uniform(1, 4))
                 taken = round(time.time() - start_time, 2)
                 text = await format_response(card_full, status, response, taken, gateway, user_id)
                 
